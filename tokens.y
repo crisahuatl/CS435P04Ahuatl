@@ -31,6 +31,9 @@ void yyerror(char *);
 %token PLUS_EQ MINUS_EQ STAR_EQ SLASH_EQ PERCENT_EQ AMP_EQ
 %token BAR_EQ CARET_EQ DBL_LESS_EQ DBL_GTR_EQ POUND DBL_POUND
 
+
+%nonassoc IFX
+%nonassoc ELSE
  
 %%
 cf_translation_unit: 
@@ -52,8 +55,9 @@ declaration_list:
 declaration:
 					declaration_specifiers init_declarator_list_opt SEMICOLON
 					;
+
 init_declarator_list_opt:
-					init_declarator_list_opt
+					init_declarator_list
 					|
 					;
 declaration_specifiers:
@@ -118,10 +122,16 @@ identifier_list:
 					IDENTIFIER
 					| identifier_list COMMA IDENTIFIER
 					;
-statement_list:
-					statement
-					| statement_list statement
+
+statement_list: 
+					statement 
+					statement_list statement
 					;
+
+statement_list_opt: statement_list
+					| 
+					;
+
 compound_statement:
 					LBRACE declaration_list_opt statement_list_opt RBRACE
 					;
@@ -130,14 +140,9 @@ declaration_list_opt:
 					| 
 					;
 
-statement_list_opt:
-					statement_list_opt
-					|
-					;
-
 statement:
 					compound_statement
-					| IF LPAREN expression RPAREN statement
+					| IF LPAREN expression RPAREN statement %prec IFX
 					| IF LPAREN expression RPAREN statement ELSE statement
 					| WHILE LPAREN expression RPAREN statement
 					| RETURN SEMICOLON
