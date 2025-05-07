@@ -1,5 +1,6 @@
+
 %{
-#define OLD__FILE_LIB 0
+#pragma warning(disable : 4996)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,22 +15,6 @@ enum Literal_Type_Names {INTEGER_TYPE, UNSIGNED_TYPE, LONG_TYPE, UNSIGNED_LONG_T
 
 int reservedWordIndex = 0;
 
-static char *mnemonic[ ] = {"", "_BOOL_TOK", "_COMPLEX_TOK", "_IMAGINARY_TOK",
-"AUTO", "BREAK", "CASE", "CHAR", "CONST", "CONTINUE",
-"DEFAULT", "DO", "DOUBLE", "ELSE", "ENUM", "EXTERN",
-  "FLOAT", "FOR", "GOTO", "IF", "INLINE", "INT", "LONG", "PRINTF",
-  "REGISTER", "RESTRICT", "RETURN", "SCANF",
-  "SHORT", "SIGNED", "SIZEOF", "STATIC", "STRUCT", "SWITCH",
-  "TYPEDEF", "UNION", "UNSIGNED", "VOID", "VOLATILE", "WHILE",
-    "IDENTIFIER", "INT_LITERAL", "REAL_LITERAL", "STR_LITERAL",
-  "LPAREN", "RPAREN", "LBRACKET", "RBRACKET", "LBRACE", "RBRACE",
-  "SEMICOLON", "COMMA", "DOT", "PLUS", "MINUS", "STAR",
-  "SLASH", "PERCENT", "AMPERSAND", "BAR", "CARET", "TILDE",
-  "ARROW", "EXCLAIM", "DBL_PLUS", "DBL_MINUS", "DBL_LESS", "DBL_GTR",
-  "QUESTION", "COLON", "TRIPLE_DOT", "DBL_AMP", "DBL_BAR", "DBL_EQL",
-  "EXCL_EQ", "LESS", "LESS_EQ", "GTR", "GTR_EQ", "EQ",
-  "PLUS_EQ", "MINUS_EQ", "STAR_EQ", "SLASH_EQ", "PERCENT_EQ", "AMP_EQ",
-  "BAR_EQ", "CARET_EQ", "DBL_LESS_EQ", "DBL_GRT_EQ", "POUND", "DBL_POUND" };
   
 
 #define NUM_OF_RESERVED_WORDS 39
@@ -84,114 +69,99 @@ int isFloatLit(char *text){
 char buf[MAX_STR_LIT_LEN];
 char *s;
 
-//Utility for creating filenames based upon the source code name. 
-char *changeFileNameExtension(const char *src, const char* extName)
- {
-	 unsigned targetBodyNameLen = 0;
-	 unsigned extNameLen = strlen(extName);
 
-	 char *targetName = "";
-	 char * pch = strrchr(src,'.'); //find last occurrence of . for extension name
-	 if( pch != NULL){
-		 targetBodyNameLen = pch-src;
-	 }
-	 else {
-		 targetBodyNameLen = strlen(src)+1;
-	 }
-
-	 targetName = (char *)malloc(targetBodyNameLen+extNameLen+4);
-	 targetName[targetBodyNameLen] = '\0';
-	 strncpy(targetName, src, targetBodyNameLen);
-	 targetName = strcat(targetName,".");
-	 targetName = strcat(targetName, extName);
-	 return targetName;
- }
 FILE *listingFile;  //stores listfile descriptor. Used by main(), yylex(), functions inside lex.yy.c
                     //will be used by parse-error handling functions
 int lines;          //keeps track of current line number of source
                     //used by main(), functions inside lex.yy.c (and future parser for error reporting)
+
+
+//For processing string literals
+#pragma warning(disable : 4996)
+#define MAX_STR_LIT_LEN 200
+char buf[MAX_STR_LIT_LEN];
+char *s;
+//Utility for creating filenames based upon the source code name.
+char *changeFileNameExtension(const char *src, const char* extName)
+{
+unsigned targetBodyNameLen = 0;
+unsigned extNameLen = strlen(extName);
+char *targetName = "";
+char * pch = strchr(src,'.'); //find last occurrence of . for extension name
+if( pch != NULL){
+targetBodyNameLen = pch-src;
+}
+else {
+targetBodyNameLen = strlen(src)+1;
+}
+targetName = (char *)malloc(targetBodyNameLen+extNameLen+4);
+targetName[targetBodyNameLen] = '\0';
+strncpy(targetName, src, targetBodyNameLen);
+targetName = strcat(targetName,".");
+targetName = strcat(targetName, extName);
+return targetName;
+}
+FILE *listingFile;
+int lines;
 main(int argc, char **argv)
 {
-    int token;
-    char *infile;
-    char *listing;
-    errno_t fileErrorCode;
-    
-    extern FILE *yyin;    //declared here; defined in lex.yy.c
-   // extern FILE *listingFile;   //good practice to declare here; defined globally 
-   // extern int lines;           //good practice to declare here; defined globally
-  
-    if (argc>1) { 
-        infile = argv[1];
-#ifndef OLD_FILE_LIB 
-        if( (fileErrorCode = fopen_s(&yyin, infile, "r")) != 0 ) { 
-              fprintf(stderr,"Source file, %s, was not opened. Error code = %d\n", infile, fileErrorCode); 
-              exit(	fileErrorCode ); 
-        }
-#else
-     	if ((yyin = fopen(argv[1], "r"))==0) {
- 			fprintf(stderr, "Error opening source file: %s", argv[1]);
- 			exit(1);
- 		}
-#endif
-    }
-    else { infile = _strdup("yyin"); //establish default listing file for interactive mode
-	       yyin = stdin;
-	}
-        
+int token;
+char *infile;
+char *listing;
+errno_t fileErrorCode;
+extern FILE *yyin;
+extern FILE *listingFile;
+extern int lines;
+extern char *yytext;
+int numerrors = 1;
 
-    listing = changeFileNameExtension(infile, "txt");
-#ifndef OLD_FILE_LIB
-	if( (fileErrorCode = fopen_s(&listingFile, listing, "w")) != 0 ) {
-         fprintf(stderr,"Listing file, %s, was not opened. Error code = %d\n", listing, fileErrorCode);
-         exit( 1 );
-    }
-#else 
-	if ((listingFile = fopen(listing, "w"))==0) {
-			fprintf(stderr,"Listing file, %s, was not opened.\n", listing);
-			exit(1);
-		}
-#endif
-    lines = 1;
-	fprintf(listingFile, "%3d   ", lines); 
-            
-    while( token = yylex() ) {
-         if( token == IDENTIFIER ) {
-             printf("%s  %s\n", mnemonic[token-TOKEN_INDEX_OFFSET+1], yylval.ident_name);
-                                  /*Move index up one since mnemonic[0] is not used */
-         }
-         else if (token == STR_LITERAL ) {
-             printf("%s  %s\n", mnemonic[token-TOKEN_INDEX_OFFSET+1], yylval.string_value);
-         }
-         else if (token == INT_LITERAL ){
-             printf("INT_LITERAL    ");
-             if( literal_type == UNSIGNED_LONG_TYPE )
-                        printf("%s %lu\n", yytext, yylval.ul_int_value );
-             else if ( literal_type == UNSIGNED_TYPE )
-                        printf("%s %u\n", yytext, yylval.u_int_value );
-             else if( literal_type == LONG_TYPE )
-                        printf("%s %ld\n", yytext, yylval.l_int_value );
-             else 
-                        printf("%s %ld\n", yytext, yylval.int_value);
-          }
-		  else if (token == REAL_LITERAL) {
-		     printf("REAL_LITERAL    ");
-		     if( literal_type == FLOAT_TYPE) { 
-			       printf("%s %g  (float_type) \n", yytext, yylval.float_value);
-			 }
-			 else {
-				   printf("%s %g (double_type)\n", yytext, yylval.double_value);
-			 }
-		  } 
-          else {
-             printf("%s  %s\n", mnemonic[token-TOKEN_INDEX_OFFSET+1], yytext); 
-          }
-    }
+numerrors = 1;
+if (argc>1) {
+infile = _strdup(argv[1]);
 
-	fprintf(listingFile, "\n\nCompilation Complete. No errors reported.\n");
-	fprintf(listingFile, "Source Program = %4d\n", lines);
-    fclose(yyin);
-    fclose(listingFile);    
+printf("Infile is %s\n", infile);
+if( (fileErrorCode = fopen_s(&yyin, infile, "r")) != 0 ) {
+fprintf(stderr,"Source file, %s, was not opened. Error code = %d\n",
+infile, fileErrorCode);
+exit( fileErrorCode );
+}
+// if ((yyin = fopen(argv[1], "r"))==0) {
+// fprintf(stderr, "Error opening source file: %s", argv[1]);
+// exit(1);
+// }
+}
+else { infile = _strdup("yyin");
+yyin = stdin;
+}
+listing = changeFileNameExtension(infile, "txt");
+if( (fileErrorCode = fopen_s(&listingFile, listing, "w")) != 0 ) {
+fprintf(stderr,"Listing file, %s, was not opened. Error code = %d\n",
+listing, fileErrorCode);
+exit( 1 );
+}
+// if ((listingFile = fopen(listing, "w"))==0) {
+// fprintf(stderr,"Listing file, %s, was not opened.\n", listing);
+// exit(1);
+// }
+lines = 1;
+fprintf(listingFile, "%3d ", lines);
+if( !yyparse() )
+{
+printf("\nCompilation Complete. 0 errors reported.\n");
+printf("Source Program = %4d lines.\n", lines);
+fprintf(listingFile, "\nCompilation Complete. 0 errors reported.\n");
+fprintf(listingFile, "Source Program = %4d lines.\n", lines);
+fclose(yyin);
+fclose(listingFile);
+return 0;
+}
+else
+{
+printf("\nParsing failed. Error on line: %i at %s\n", lines, yytext);
+fprintf(listingFile, "\nParsing failed. Error on line: %i at %s\n", lines, yytext);
+fclose(listingFile);
+return 2; //arbitrary non-zero error number
+}
 }
 
 %}
@@ -334,4 +304,3 @@ hexDigit [0-9A-Fa-f]
 .		 {fprintf(listingFile, "%s", yytext); printf("Lex Error: Illegal Character %s\n", yytext);}
 
 %%
-
