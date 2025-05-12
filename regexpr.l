@@ -1,6 +1,5 @@
-
 %{
-#pragma warning(disable : 4996)
+#define OLD__FILE_LIB 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +13,6 @@ enum Literal_Type_Names {INTEGER_TYPE, UNSIGNED_TYPE, LONG_TYPE, UNSIGNED_LONG_T
 #define TOKEN_INDEX_OFFSET 257
 
 int reservedWordIndex = 0;
-
   
 
 #define NUM_OF_RESERVED_WORDS 39
@@ -65,103 +63,89 @@ int isFloatLit(char *text){
 }
 
 //For processing string literals
-#define MAX_STR_LIT_LEN 200
-char buf[MAX_STR_LIT_LEN];
-char *s;
-
-
-FILE *listingFile;  //stores listfile descriptor. Used by main(), yylex(), functions inside lex.yy.c
-                    //will be used by parse-error handling functions
-int lines;          //keeps track of current line number of source
-                    //used by main(), functions inside lex.yy.c (and future parser for error reporting)
-
-
-//For processing string literals
 #pragma warning(disable : 4996)
 #define MAX_STR_LIT_LEN 200
 char buf[MAX_STR_LIT_LEN];
-char *s;
+char* s;
+int numerrors = 0;
 //Utility for creating filenames based upon the source code name.
-char *changeFileNameExtension(const char *src, const char* extName)
+char* changeFileNameExtension(const char* src, const char* extName)
 {
-unsigned targetBodyNameLen = 0;
-unsigned extNameLen = strlen(extName);
-char *targetName = "";
-char * pch = strchr(src,'.'); //find last occurrence of . for extension name
-if( pch != NULL){
-targetBodyNameLen = pch-src;
+	unsigned targetBodyNameLen = 0;
+	unsigned extNameLen = strlen(extName);
+	char* targetName = "";
+	char* pch = strchr(src, '.'); //find last occurrence of . for extension name
+	if (pch != NULL) {
+		targetBodyNameLen = pch - src;
+	}
+	else {
+		targetBodyNameLen = strlen(src) + 1;
+	}
+	targetName = (char*)malloc(targetBodyNameLen + extNameLen + 4);
+	targetName[targetBodyNameLen] = '\0';
+	strncpy(targetName, src, targetBodyNameLen);
+	targetName = strcat(targetName, ".");
+	targetName = strcat(targetName, extName);
+	return targetName;
 }
-else {
-targetBodyNameLen = strlen(src)+1;
-}
-targetName = (char *)malloc(targetBodyNameLen+extNameLen+4);
-targetName[targetBodyNameLen] = '\0';
-strncpy(targetName, src, targetBodyNameLen);
-targetName = strcat(targetName,".");
-targetName = strcat(targetName, extName);
-return targetName;
-}
-FILE *listingFile;
+FILE* listingFile;
 int lines;
-main(int argc, char **argv)
+main(int argc, char** argv)
 {
-int token;
-char *infile;
-char *listing;
-errno_t fileErrorCode;
-extern FILE *yyin;
-extern FILE *listingFile;
-extern int lines;
-extern char *yytext;
-int numerrors = 1;
-
-numerrors = 1;
-if (argc>1) {
-infile = _strdup(argv[1]);
-
-printf("Infile is %s\n", infile);
-if( (fileErrorCode = fopen_s(&yyin, infile, "r")) != 0 ) {
-fprintf(stderr,"Source file, %s, was not opened. Error code = %d\n",
-infile, fileErrorCode);
-exit( fileErrorCode );
-}
-// if ((yyin = fopen(argv[1], "r"))==0) {
-// fprintf(stderr, "Error opening source file: %s", argv[1]);
-// exit(1);
-// }
-}
-else { infile = _strdup("yyin");
-yyin = stdin;
-}
-listing = changeFileNameExtension(infile, "txt");
-if( (fileErrorCode = fopen_s(&listingFile, listing, "w")) != 0 ) {
-fprintf(stderr,"Listing file, %s, was not opened. Error code = %d\n",
-listing, fileErrorCode);
-exit( 1 );
-}
-// if ((listingFile = fopen(listing, "w"))==0) {
-// fprintf(stderr,"Listing file, %s, was not opened.\n", listing);
-// exit(1);
-// }
-lines = 1;
-fprintf(listingFile, "%3d ", lines);
-if( !yyparse() )
-{
-printf("\nCompilation Complete. 0 errors reported.\n");
-printf("Source Program = %4d lines.\n", lines);
-fprintf(listingFile, "\nCompilation Complete. 0 errors reported.\n");
-fprintf(listingFile, "Source Program = %4d lines.\n", lines);
-fclose(yyin);
-fclose(listingFile);
-return 0;
-}
-else
-{
-printf("\nParsing failed. Error on line: %i at %s\n", lines, yytext);
-fprintf(listingFile, "\nParsing failed. Error on line: %i at %s\n", lines, yytext);
-fclose(listingFile);
-return 2; //arbitrary non-zero error number
-}
+	int token;
+	char* infile;
+	char* listing;
+	errno_t fileErrorCode;
+	extern FILE* yyin;
+	extern FILE* listingFile;
+	extern int lines;
+	numerrors = 1;
+	if (argc > 1) {
+		infile = _strdup(argv[1]);
+		printf("Infile is %s\n", infile);
+		if ((fileErrorCode = fopen_s(&yyin, infile, "r")) != 0) {
+			fprintf(stderr, "Source file, %s, was not opened. Error code = %d\n",
+				infile, fileErrorCode);
+			exit(fileErrorCode);
+		}
+		// if ((yyin = fopen(argv[1], "r"))==0) {
+		// fprintf(stderr, "Error opening source file: %s", argv[1]);
+		// exit(1);
+		// }
+	}
+	else {
+		infile = _strdup("yyin");
+		yyin = stdin;
+	}
+	listing = changeFileNameExtension(infile, "txt");
+	if ((fileErrorCode = fopen_s(&listingFile, listing, "w")) != 0) {
+		fprintf(stderr, "Listing file, %s, was not opened. Error code = %d\n",
+			listing, fileErrorCode);
+		exit(1);
+	}
+	// if ((listingFile = fopen(listing, "w"))==0) {
+	// fprintf(stderr,"Listing file, %s, was not opened.\n", listing);
+	// exit(1);
+	// }
+	lines = 1;
+	fprintf(listingFile, "%3d ", lines);
+	if (!yyparse())
+	{
+		printf("\nCompilation Complete. 0 errors reported.\n");
+		printf("Source Program = %4d lines.\n", lines);
+		fprintf(listingFile, "\nCompilation Complete. 0 errors reported.\n");
+		fprintf(listingFile, "Source Program = %4d lines.\n", lines);
+		fclose(yyin);
+		fclose(listingFile);
+		return 0;
+	}
+	else
+	{
+		printf("\nParsing failed. Error on line: %i at %s\n", lines, yytext);
+		fprintf(listingFile, "\nParsing failed. Error on line: %i at %s\n", lines, yytext);
+		fclose(listingFile);
+		return 2; //arbitrary non-zero error number
+	}
 }
 
 %}
@@ -304,3 +288,4 @@ hexDigit [0-9A-Fa-f]
 .		 {fprintf(listingFile, "%s", yytext); printf("Lex Error: Illegal Character %s\n", yytext);}
 
 %%
+
